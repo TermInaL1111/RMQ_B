@@ -16,24 +16,26 @@ public class ChatService {
     private RabbitTemplate rabbitTemplate;
 
     // 群发消息
+    //md 这里参数搞错了  想当然没有 routingkey  结果把 交换机当成 key了
     public void sendToAll(ChatMessage msg) {
-        rabbitTemplate.convertAndSend("chat_fanout_exchange", msg);
+        rabbitTemplate.convertAndSend("chat_fanout_exchange","", msg);
     }
 
-    // 私发消息
-    public void sendToUser(ChatMessage msg) {
-        // 路由键规则：chat.user.用户ID
-        String routeKey = "chat.user." + msg.getReceiver();
-        rabbitTemplate.convertAndSend("chat_topic_exchange", routeKey, msg);
-    }
+//    // 私发消息
+//    public void sendToUser(ChatMessage msg) {
+//        // 路由键规则：chat.user.用户ID
+//        String routeKey = "chat.user." + msg.getReceiver();
+//        rabbitTemplate.convertAndSend("chat_topic_exchange", routeKey, msg);
+//    }
 
     // 群发 上线 / 下线   目前
-    public void sendUserStatus(UserStatusMessage msg) {
-        rabbitTemplate.convertAndSend("status_fanout_exchange", "user.status", msg);
+    public void sendUserStatus(ChatMessage msg) {
+
+        rabbitTemplate.convertAndSend("status_fanout_exchange","", msg);
     }
 
 
-    // 发送文件（文件转为字节数组）
+//    // 发送文件（文件转为字节数组）
 //    public void sendFile(String sender, String receiver, MultipartFile file) throws IOException {
 //        ChatMessage msg = new ChatMessage();
 //        msg.setType("file");

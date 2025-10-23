@@ -41,7 +41,7 @@ public class DynamicQueueUtil {
                 .to(chatFanoutExchange);
         rabbitAdmin.declareBinding(userBinding2);
         //绑定用户状态队列
-        String queueName3 = "queue_chat_all_" + userId;
+        String queueName3 = "queue_user_status_" + userId;
         Queue userQueue3 = new Queue(queueName3, true, false, false);
         rabbitAdmin.declareQueue(userQueue3);
         Binding userBinding3 = BindingBuilder.bind(userQueue3)

@@ -1,11 +1,16 @@
 package com.shms.deployrabbitmq.pojo;
 
-import lombok.Data;
+import lombok.*;
 
 import java.io.Serializable;
 
 @Data
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class ChatMessage implements Serializable {
+    private static final long serialVersionUID = 1L; // 必须添加序列化版本号
     private String type;       // message / file
     private String sender;     // 发送方用户名
     private String receiver;   // 接收方（"all" 表示群发）
