@@ -71,6 +71,10 @@ public class UserController {
 
     @PostMapping("/sendTo")
     public Result sendTo(@RequestParam String sender, @RequestParam String receiver, @RequestParam String content) {
+        if (!db.userExists(receiver)) {
+            return Result.error("接收用户不存在");
+        }
+
         ChatMessage msg = new ChatMessage();
         msg.setType("message");
         msg.setSender(sender);
