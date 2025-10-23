@@ -1,6 +1,7 @@
 package com.shms.deployrabbitmq.Service;
 
 import com.shms.deployrabbitmq.pojo.ChatMessage;
+import com.shms.deployrabbitmq.pojo.UserStatusMessage;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class ChatService {
 
     // 群发消息
     public void sendToAll(ChatMessage msg) {
-        rabbitTemplate.convertAndSend("chat_topic_exchange", "chat.all", msg);
+        rabbitTemplate.convertAndSend("chat_fanout_exchange", msg);
     }
 
     // 私发消息
@@ -26,15 +27,21 @@ public class ChatService {
         rabbitTemplate.convertAndSend("chat_topic_exchange", routeKey, msg);
     }
 
-    // 发送文件（文件转为字节数组）
-    public void sendFile(String sender, String receiver, MultipartFile file) throws IOException {
-        ChatMessage msg = new ChatMessage();
-        msg.setType("file");
-        msg.setSender(sender);
-        msg.setReceiver(receiver);
-        msg.setContent(file.getOriginalFilename());
-        msg.setFileData(file.getBytes());
-        msg.setTimestamp(System.currentTimeMillis());
-        sendToUser(msg);
+    // 群发 上线 / 下线   目前
+    public void sendUserStatus(UserStatusMessage msg) {
+        rabbitTemplate.convertAndSend("status_fanout_exchange", "user.status", msg);
     }
+
+
+    // 发送文件（文件转为字节数组）
+//    public void sendFile(String sender, String receiver, MultipartFile file) throws IOException {
+//        ChatMessage msg = new ChatMessage();
+//        msg.setType("file");
+//        msg.setSender(sender);
+//        msg.setReceiver(receiver);
+//        msg.setContent(file.getOriginalFilename());
+//        msg.setFileData(file.getBytes());
+//        msg.setTimestamp(System.currentTimeMillis());
+//        sendToUser(msg);
+//    }
 }

@@ -5,6 +5,7 @@ import com.shms.deployrabbitmq.DynamicQueueUtil;
 import com.shms.deployrabbitmq.Service.ChatService;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import com.shms.deployrabbitmq.pojo.Result;
+import com.shms.deployrabbitmq.pojo.UserStatusMessage;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,13 +48,25 @@ public class UserController {
         if (!db.checkLogin(username, password))
             return Result.error("账号或密码错误");
         dynamicQueueUtil.createUserQueue(username);
+
+        UserStatusMessage msg = new UserStatusMessage();
+        msg.setUsername(username);
+        msg.setStatus("online");
+        chatService.sendUserStatus(msg);
+
         return Result.success("登录成功");
     }
 
-    // （可选）用户注销时删除队列
+    // 用户注销时删除队列
     @PostMapping("/logout")
     public Result logout(@RequestParam String username) {
         dynamicQueueUtil.deleteQueue("queue_chat_user_" + username);
+
+        UserStatusMessage msg = new UserStatusMessage();
+        msg.setUsername(username);
+        msg.setStatus("offline");
+        chatService.sendUserStatus(msg);
+
         return Result.success("登出成功");
     }
 
@@ -66,6 +79,7 @@ public class UserController {
         msg.setContent(content);
         msg.setTimestamp(System.currentTimeMillis());
         chatService.sendToAll(msg);
+
         return Result.success("群发成功");
     }
 
@@ -85,11 +99,11 @@ public class UserController {
         return Result.success("私发成功");
     }
 
-    @PostMapping("/sendFile")
-    public Result sendFile(@RequestParam String sender,
-                           @RequestParam String receiver,
-                           @RequestPart MultipartFile file) throws IOException {
-        chatService.sendFile(sender, receiver, file);
-        return Result.success("文件发送成功");
-    }
+//    @PostMapping("/sendFile")
+//    public Result sendFile(@RequestParam String sender,
+//                           @RequestParam String receiver,
+//                           @RequestPart MultipartFile file) throws IOException {
+//        chatService.sendFile(sender, receiver, file);
+//        return Result.success("文件发送成功");
+//    }
 }

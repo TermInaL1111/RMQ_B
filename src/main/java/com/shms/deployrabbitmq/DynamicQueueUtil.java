@@ -1,9 +1,6 @@
 package com.shms.deployrabbitmq;
 
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -15,31 +12,58 @@ public class DynamicQueueUtil {
 
     @Autowired
     private TopicExchange chatTopicExchange; // 注入之前声明的Topic交换机
+    @Autowired
+    private FanoutExchange chatFanoutExchange;
+    @Autowired
+    private FanoutExchange statusFanoutExchange;
 
-    // 1. 动态为用户创建“私信队列”并绑定路由键（用户登录时调用）
+
+    // 1. 动态为用户创建 队列 并绑定路由键（用户登录时调用）
     public void createUserQueue(String userId) {
         // 队列名规则：queue_chat_user_用户ID（确保唯一）
         String queueName = "queue_chat_user_" + userId;
         // 路由键规则：chat.user.用户ID（与发送逻辑对应）
         String routingKey = "chat.user." + userId;
-
         // 1.1 创建队列（参数：队列名、持久化、排他、自动删除）
         Queue userQueue = new Queue(queueName, true, false, false);
         rabbitAdmin.declareQueue(userQueue); // 执行创建队列
-
         // 1.2 绑定队列到交换机
         Binding userBinding = BindingBuilder.bind(userQueue)
                 .to(chatTopicExchange)
                 .with(routingKey);
         rabbitAdmin.declareBinding(userBinding); // 执行绑定
         System.out.println("已为用户【" + userId + "】创建私信队列：" + queueName);
+        //绑定群发队列
+        String queueName2 = "queue_chat_all_" + userId;
+        Queue userQueue2 = new Queue(queueName2, true, false, false);
+        rabbitAdmin.declareQueue(userQueue2);
+        Binding userBinding2 = BindingBuilder.bind(userQueue2)
+                .to(chatFanoutExchange);
+        rabbitAdmin.declareBinding(userBinding2);
+        //绑定用户状态队列
+        String queueName3 = "queue_chat_all_" + userId;
+        Queue userQueue3 = new Queue(queueName3, true, false, false);
+        rabbitAdmin.declareQueue(userQueue3);
+        Binding userBinding3 = BindingBuilder.bind(userQueue3)
+                .to(statusFanoutExchange);
+        rabbitAdmin.declareBinding(userBinding3);
     }
 
 
 
-    // 3. （可选）动态删除队列（用户注销/退出群时调用，避免资源浪费）
+    // 2. （可选）动态删除队列（用户注销/退出群时调用，避免资源浪费）
     public void deleteQueue(String queueName) {
         rabbitAdmin.deleteQueue(queueName);
         System.out.println("已删除队列：" + queueName);
     }
 }
+
+//私信队列
+//队列名：queue_chat_user_{userId}
+//绑定路由键：chat.user.{userId}
+//群发队列（可选，使用 Fanout）
+//每个用户一个队列，例如：queue_chat_all_{userId}
+//绑定到 Fanout 交换机或 Topic 的 chat.all 路由键
+//用户状态队列（可选）
+//每个用户独立队列，例如：queue_user_status_{userId}
+//绑定到 user.status 路由键
