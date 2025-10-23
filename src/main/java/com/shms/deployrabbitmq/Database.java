@@ -1,22 +1,43 @@
 package com.shms.deployrabbitmq;
 
 import java.io.*;
+import java.nio.file.Files;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.w3c.dom.*;
 
 
 //完全复用 实现 用户的账号密码 存储 读取
 public class Database {
 
-    public String filePath;
+
+    private String filePath;
+
 
     public Database(String filePath){
         this.filePath = filePath;
+        initFile(); // 自动初始化文件
+    }
+    private void initFile() {
+        File file = new File(filePath);
+        File parent = file.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+
+        if (!file.exists()) {
+            try {
+                Files.writeString(file.toPath(), "<data></data>");
+                System.out.println("已创建用户数据库文件：" + file.getAbsolutePath());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     public boolean userExists(String username){
