@@ -54,6 +54,17 @@
             <artifactId>spring-rabbit-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!--   添加jdbc-->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version> <!-- 8.x 版本，支持 com.mysql.cj.jdbc.Driver -->
+            <scope>runtime</scope> <!-- 运行时生效，可选 -->
+        </dependency>
     </dependencies>
 
     <build>

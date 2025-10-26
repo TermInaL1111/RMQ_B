@@ -11,6 +11,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class ChatMessage implements Serializable {
     private static final long serialVersionUID = 1L; // 必须添加序列化版本号
+    private String messageId;  // 新增 消息id
     private String type;       // message / file
     private String sender;     // 发送方用户名
     private String receiver;   // 接收方（"all" 表示群发）

@@ -5,6 +5,38 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+
+//@Component
+//public class DynamicQueueUtil {
+//
+//    @Autowired
+//    private RabbitAdmin rabbitAdmin;
+//
+//    @Autowired
+//    private FanoutExchange statusFanoutExchange;
+//
+//    // 创建用户状态队列（上线/下线通知）
+//    public void createUserStatusQueue(String userId) {
+//        String queueName = "queue_user_status_" + userId;
+//        Queue statusQueue = new Queue(queueName, true, false, false);
+//        rabbitAdmin.declareQueue(statusQueue);
+//
+//        Binding binding = BindingBuilder.bind(statusQueue).to(statusFanoutExchange);
+//        rabbitAdmin.declareBinding(binding);
+//
+//        System.out.println("已为用户【" + userId + "】创建状态队列：" + queueName);
+//    }
+//
+//    // 删除用户状态队列
+//    public void deleteUserStatusQueue(String userId) {
+//        String queueName = "queue_user_status_" + userId;
+//        rabbitAdmin.deleteQueue(queueName);
+//        System.out.println("已删除状态队列：" + queueName);
+//    }
+//}
+
+
+
 @Component
 public class DynamicQueueUtil {
     @Autowired
@@ -52,9 +84,10 @@ public class DynamicQueueUtil {
 
 
     // 2. （可选）动态删除队列（用户注销/退出群时调用，避免资源浪费）
-    public void deleteQueue(String queueName) {
-        rabbitAdmin.deleteQueue(queueName);
-        System.out.println("已删除队列：" + queueName);
+    public void deleteQueue(String userId) {
+        String queueName1 = "queue_user_status_" + userId;
+        rabbitAdmin.deleteQueue(queueName1);
+        System.out.println("已删除队列：" + queueName1);
     }
 }
 
