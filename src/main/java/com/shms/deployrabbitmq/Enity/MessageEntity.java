@@ -34,7 +34,7 @@ public class MessageEntity {
     @Enumerated(EnumType.STRING)
     private Status status = Status.PENDING;
 
-    public enum MessageType { TEXT, FILE, STATUS }
+    public enum MessageType { message, file, status }
     public enum Status { PENDING, SENT, DELIVERED, READ }
 
 }

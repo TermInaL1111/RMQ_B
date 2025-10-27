@@ -53,6 +53,16 @@ public class ChatService {
 
         log.info("发送私信: {}", msg);
     }
+    public void sendMessageToUser(String username, MessageEntity msg) {
+        String routingKey = "chat.user." + username; // 用户专属路由键
+        rabbitTemplate.convertAndSend(
+                "chat_topic_exchange", // topic 交换机
+                routingKey,
+                msg,
+                new CorrelationData(msg.getMessageId()) // 确认消息
+        );
+        log.info("发送未读消息到 {} 路由: {}", username, msg.getMessageId());
+    }
 
     // 发送群发消息（状态 / 广播）
     public void sendUserStatus(ChatMessage msg) {
