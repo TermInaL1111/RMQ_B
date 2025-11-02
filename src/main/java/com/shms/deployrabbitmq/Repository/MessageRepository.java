@@ -10,5 +10,4 @@ import java.util.Optional;
 public interface MessageRepository extends JpaRepository<MessageEntity, Long> {
     Optional<MessageEntity> findByMessageId(String messageId);
     List<MessageEntity> findByReceiverAndStatus(String receiver, MessageEntity.Status status);
-
 }

@@ -65,6 +65,13 @@
             <version>8.0.33</version> <!-- 8.x 版本，支持 com.mysql.cj.jdbc.Driver -->
             <scope>runtime</scope> <!-- 运行时生效，可选 -->
         </dependency>
+
+        <!-- Spring WebSocket -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

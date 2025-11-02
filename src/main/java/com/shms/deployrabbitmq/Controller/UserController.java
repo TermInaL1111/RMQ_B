@@ -1,6 +1,6 @@
 package com.shms.deployrabbitmq.Controller;
 
-import com.shms.deployrabbitmq.DynamicQueueUtil;
+import com.shms.deployrabbitmq.Service.DynamicQueueUtil;
 import com.shms.deployrabbitmq.Enity.MessageEntity;
 import com.shms.deployrabbitmq.Enity.UserEntity;
 import com.shms.deployrabbitmq.Repository.MessageRepository;
@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @RestController
@@ -44,13 +45,14 @@ public class UserController {
     private UserRepository userRepository;
     @Autowired
     private MessageRepository messageRepository;
+    @Autowired
+    private ChatWebSocketHandler chatWebSocketHandler;
 
     @Autowired
     private ChatService chatService;
 
-    @Autowired
-    private DynamicQueueUtil dynamicQueueUtil;
-
+  //  @Autowired
+   // private DynamicQueueUtil dynamicQueueUtil;
     @PostMapping("test")
     public Result test(@RequestBody User user){
         return Result.success();
@@ -69,7 +71,6 @@ public class UserController {
         log.info("用户注册成功：{}", user.getUsername());
         return Result.success("注册成功");
     }
-
     // 用户登录
     @PostMapping("/login")
     public Result login(@RequestBody User user) {
@@ -85,7 +86,7 @@ public class UserController {
             return Result.error("用户已在线，请先下线再登录");
         }
         // 创建用户队列
-        dynamicQueueUtil.createUserQueue(user.getUsername());
+   //     dynamicQueueUtil.createUserQueue(user.getUsername());
         // 广播上线状态
         ChatMessage statusMsg = new ChatMessage();
         statusMsg.setType("status");
@@ -97,49 +98,36 @@ public class UserController {
         optional.get().setStatus(UserEntity.Status.online);
         userRepository.save(optional.get());
 
-        // ✅ 拉取未读消息
-        List<MessageEntity> unreadMessages = messageRepository.findByReceiverAndStatus(
-                user.getUsername(), MessageEntity.Status.SENT
-        );
+        //  拉取未读消息
+//        List<MessageEntity> unreadMessages = messageRepository.findByReceiverAndStatus(
+//                user.getUsername(), MessageEntity.Status.SENT
+//        );
+        // 登录成功后，延迟推送未读消息
+        CompletableFuture.runAsync(() -> {
+            List<MessageEntity> unread = messageRepository.findByReceiverAndStatus( user.getUsername(),
+                    MessageEntity.Status.SENT);
+            //遍历这些未读消息并逐条推送给客户端：
+            for (MessageEntity msgEntity : unread) {
+                ChatMessage chatMsg = new ChatMessage();
+                chatMsg.setMessageId(msgEntity.getMessageId());
+                chatMsg.setType(msgEntity.getType().name());
+                chatMsg.setSender(msgEntity.getSender());
+                chatMsg.setReceiver(msgEntity.getReceiver());
+                chatMsg.setContent(msgEntity.getContent());
+                chatMsg.setFileUrl(msgEntity.getFileUrl());
+                chatMsg.setTimestamp(msgEntity.getTimestamp());
 
-        // 将未读消息发送给客户端
-        for (MessageEntity msg : unreadMessages) {
-            chatService.sendMessageToUser(user.getUsername(), msg);
-            msg.setStatus(MessageEntity.Status.DELIVERED);
-            messageRepository.save(msg);
-        }
-
-        log.info("用户登录成功: {}, 未读消息数量: {}", user.getUsername(), unreadMessages.size());
-
-
+                chatWebSocketHandler.pushToUser(user.getUsername(), chatMsg);
+                // 标记为已推送
+                msgEntity.setStatus(MessageEntity.Status.DELIVERED);
+                messageRepository.save(msgEntity);
+            }
+        });
+      //  log.info("用户登录成功: {}, 未读消息数量: {}", user.getUsername(), unreadMessages.size());
         log.info("用户登录成功: {}", user.getUsername());
         return Result.success("登录成功");
     }
 
-    // 用户登出
-//    @PostMapping("/logout")
-//    public Result logout(@RequestParam String username) {
-//        // 删除状态队列
-//        dynamicQueueUtil.deleteQueue(username);
-//
-//        // 广播下线状态
-//        ChatMessage statusMsg = new ChatMessage();
-//        statusMsg.setType("status");
-//        statusMsg.setSender(username);
-//        statusMsg.setReceiver("all");
-//        statusMsg.setContent("offline");
-//        chatService.sendUserStatus(statusMsg);
-////登出时数据库状态更新
-//        Optional<UserEntity> opt = userRepository.findByUsername(username);
-//        opt.ifPresent(user -> {
-//            user.setStatus(UserEntity.Status.offline);
-//            userRepository.save(user);
-//        });
-//
-//
-//        log.info("用户登出成功: {}", username);
-//        return Result.success("登出成功");
-//    }
 @Transactional
     @PostMapping("/logout")
     public Result logout(@RequestBody User user1) {
@@ -152,10 +140,8 @@ public class UserController {
             log.error("登出失败：未查询到用户 [{}]", username);
             return Result.error("用户不存在");
         }
-
-        // 2. 删除队列（原有逻辑）
-        dynamicQueueUtil.deleteQueue(username);
-
+        // 2. 删除队列
+      //  dynamicQueueUtil.deleteQueue(username);
         // 3. 广播下线状态（原有逻辑）
         ChatMessage statusMsg = new ChatMessage();
         statusMsg.setType("status");
@@ -190,7 +176,6 @@ public class UserController {
         try {
             File dir = new File(fileDir);
             if (!dir.exists()) dir.mkdirs();
-
             // 生成文件名（确保有下划线）
             String storedFileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
             // 新增日志：打印生成的文件名和存储路径
@@ -210,6 +195,7 @@ public class UserController {
             return Result.error("上传失败");
         }
     }
+    //+识别 .
     @GetMapping("/download/{fileName:.+}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
         try {
@@ -220,7 +206,6 @@ public class UserController {
                 log.warn("文件不存在: {}", path);
                 return ResponseEntity.notFound().build();
             }
-
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
                     .body(resource);
@@ -240,83 +225,9 @@ public class UserController {
         log.info("获取在线列表：{}", usernameList);
         return Result.success(usernameList); // 返回字符串列表
     }
-
-
-//    @GetMapping("/download/{fileName}")
-//    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
-//        try {
-//            Path path = Paths.get(fileDir, fileName);
-//            Resource resource = new UrlResource(path.toUri());
-//            if (!resource.exists()) return ResponseEntity.notFound().build();
-//
-//            return ResponseEntity.ok()
-//                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + resource.getFilename() + "\"")
-//                    .body(resource);
-//        } catch (MalformedURLException e) {
-//            return ResponseEntity.badRequest().build();
-//        }
-//    }
-
 }
 
 
-
-
-//@RestController
-//@Slf4j
-//@RequestMapping("/user")
-//public class UserController {
-//
-//    @Value("${chat.user-db:./data/users.xml}")
-//    public String userDbPath;
-//
-//    private Database db;
-//
-//    @PostConstruct
-//    public void initDb() {
-//        this.db = new Database(userDbPath);
-//    }
-//
-//    @Autowired
-//    public ChatService chatService;
-//    @Autowired
-//    public DynamicQueueUtil dynamicQueueUtil;
-//
-//    //注册接口
-//    @PostMapping("/register")
-//    public Result register(@RequestBody User user) {
-//        if (db.userExists(user.getUsername())) return Result.error("用户已存在");
-//        db.addUser(user.getUsername(), user.getPassword());
-//        log.info("用户注册成功：" + user.getUsername());
-//        return Result.success("注册成功");
-//    }
-//
-//    // 用户登录接口
-//    @PostMapping("/login")
-//    public Result login(@RequestBody User user) {
-//        // 1. 此处省略：密码验证、生成登录态等逻辑
-//        // 2. 登录成功后，为用户动态创建私信队列
-//        if (!db.checkLogin(user.getUsername(), user.getPassword())) {
-//            log.error("用户登录失败：" + user.getUsername());
-//            return Result.error("账号或密码错误");
-//        }
-//        dynamicQueueUtil.createUserQueue(user.getUsername());
-//
-////        UserStatusMessage msg = new UserStatusMessage();
-////        msg.setUsername(user.getUsername());
-////        msg.setStatus("online");
-//        ChatMessage msg = new ChatMessage();
-//        msg.setType("status");
-//        msg.setSender(user.getUsername());
-//        msg.setContent("ONLINE");
-//        msg.setReceiver("all");
-//        msg.setTimestamp(System.currentTimeMillis());
-//        chatService.sendUserStatus(msg);
-//        log.info("用户登录成功：" + user.getUsername());
-//
-//        return Result.success("登录成功");
-//    }
-//
 //    // 用户注销时删除队列
 //    @PostMapping("/logout")
 //    public Result logout(@RequestParam String username) {

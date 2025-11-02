@@ -4,11 +4,15 @@ import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
+
+import java.util.ArrayList;
+import java.util.List;
 
 //Spring Boot 启动
 //扫描所有带 @Configuration 的配置类（比如你的 MyRabbitConfig）。
@@ -17,28 +21,46 @@ import org.springframework.amqp.rabbit.core.RabbitAdmin;
 
 
 @Configuration
-public class MyRabbitConfig {
+public class RabbitMQConfig  {
+
+
+    public static final String EXCHANGE_NAME = "chat.topic";
+    public static final String QUEUE_PREFIX = "chat.queue.";
+
+    /** Routingkey
+     *  chat.user.{userId}   —— 单用户私聊
+     *  chat.broadcast.*     —— 系统广播
+     */
+    public static final String ROUTING_KEY_USER = "chat.user.*";
+    public static final String ROUTING_KEY_BROADCAST = "chat.broadcast.all";
 
     @Bean
-    public MessageConverter messageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public TopicExchange chatExchange() {
+        return new TopicExchange(EXCHANGE_NAME, true, false);
     }
-
+    //转为json
+        @Bean
+        public Jackson2JsonMessageConverter messageConverter() {
+            return new Jackson2JsonMessageConverter();
+        }
     @Bean
-    public TopicExchange chatTopicExchange() {
-        return new TopicExchange("chat_topic_exchange", true, false);
+    public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
+        RabbitAdmin admin = new RabbitAdmin(connectionFactory);
+        admin.setAutoStartup(true);
+        return admin;
     }
-
     @Bean
-    public FanoutExchange statusFanoutExchange() {
-        return new FanoutExchange("status_fanout_exchange", true, false);
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(messageConverter());
+        template.setConfirmCallback((correlationData, ack, cause) -> {
+            if (!ack) {
+                System.err.println("消息发送失败: " + cause);
+            }
+        });
+        return template;
     }
-
-//    //2 声明fanout 交换机
-    @Bean
-    public FanoutExchange chatFanoutExchange(){
-        return new FanoutExchange("chat_fanout_exchange",true,false);
-    }
+}
 
 
 //    //共享私信队列  receiver 或 routingKey 过滤自己的消息
@@ -56,26 +78,6 @@ public class MyRabbitConfig {
 //    public Binding privateBinding(Queue privateQueue, TopicExchange chatTopicExchange) {
 //        return BindingBuilder.bind(privateQueue).to(chatTopicExchange).with("chat.user.*");
 //    }
-
-    @Bean
-    public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
-        RabbitAdmin admin = new RabbitAdmin(connectionFactory);
-        admin.setAutoStartup(true);
-        return admin;
-    }
-
-    @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
-        RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(messageConverter());
-        template.setConfirmCallback((correlationData, ack, cause) -> {
-            if (!ack) {
-                System.err.println("消息发送失败: " + cause);
-            }
-        });
-        return template;
-    }
-}
 
 
 

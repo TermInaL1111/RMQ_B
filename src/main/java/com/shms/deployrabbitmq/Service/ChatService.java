@@ -28,31 +28,6 @@ public class ChatService {
     @Autowired
     private MessageRepository messageRepository;
 
-    // 发送私信（共享队列 + routingKey）
-    public void sendPrivateMessage(ChatMessage msg) {
-        msg.setTimestamp(System.currentTimeMillis());
-        msg.setMessageId(UUID.randomUUID().toString()); // 唯一消息ID
-
-        rabbitTemplate.convertAndSend(
-                "chat_topic_exchange",
-                "chat.user." + msg.getReceiver(),
-                msg,
-                new CorrelationData(msg.getMessageId())
-        );
-
-        // 记录消息状态（未读）
-        MessageEntity entity = new MessageEntity();
-        entity.setMessageId(msg.getMessageId());
-        entity.setSender(msg.getSender());
-        entity.setReceiver(msg.getReceiver());
-        entity.setContent(msg.getContent());
-        entity.setType(MessageEntity.MessageType.valueOf(msg.getType()));
-        entity.setStatus(MessageEntity.Status.valueOf("UNREAD"));
-        entity.setTimestamp(msg.getTimestamp());
-        messageRepository.save(entity);
-
-        log.info("发送私信: {}", msg);
-    }
     public void sendMessageToUser(String username, MessageEntity msg) {
         String routingKey = "chat.user." + username; // 用户专属路由键
         rabbitTemplate.convertAndSend(
@@ -79,6 +54,33 @@ public class ChatService {
             log.info("消息已确认: {}", messageId);
         });
     }
+
+//    // 发送私信（共享队列 + routingKey）
+//    public void sendPrivateMessage(ChatMessage msg) {
+//        msg.setTimestamp(System.currentTimeMillis());
+//        msg.setMessageId(UUID.randomUUID().toString()); // 唯一消息ID
+//
+//        rabbitTemplate.convertAndSend(
+//                "chat_topic_exchange",
+//                "chat.user." + msg.getReceiver(),
+//                msg,
+//                new CorrelationData(msg.getMessageId())
+//        );
+//
+//        // 记录消息状态（未读）
+//        MessageEntity entity = new MessageEntity();
+//        entity.setMessageId(msg.getMessageId());
+//        entity.setSender(msg.getSender());
+//        entity.setReceiver(msg.getReceiver());
+//        entity.setContent(msg.getContent());
+//        entity.setType(MessageEntity.MessageType.valueOf(msg.getType()));
+//        entity.setStatus(MessageEntity.Status.valueOf("UNREAD"));
+//        entity.setTimestamp(msg.getTimestamp());
+//        messageRepository.save(entity);
+//
+//        log.info("发送私信: {}", msg);
+//    }
+
 }
 
 
