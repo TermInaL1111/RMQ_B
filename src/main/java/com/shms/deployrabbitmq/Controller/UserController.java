@@ -1,11 +1,11 @@
 package com.shms.deployrabbitmq.Controller;
 
-import com.shms.deployrabbitmq.Service.DynamicQueueUtil;
 import com.shms.deployrabbitmq.Enity.MessageEntity;
 import com.shms.deployrabbitmq.Enity.UserEntity;
 import com.shms.deployrabbitmq.Repository.MessageRepository;
 import com.shms.deployrabbitmq.Repository.UserRepository;
 import com.shms.deployrabbitmq.Service.ChatService;
+import com.shms.deployrabbitmq.Service.DispatcherProducerService;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import com.shms.deployrabbitmq.pojo.Result;
 import com.shms.deployrabbitmq.pojo.User;
@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -48,11 +49,12 @@ public class UserController {
     @Autowired
     private ChatWebSocketHandler chatWebSocketHandler;
 
+//    @Autowired
+//    private ChatService chatService;
     @Autowired
-    private ChatService chatService;
+    private  DispatcherProducerService dispatcherProducerService;
 
-  //  @Autowired
-   // private DynamicQueueUtil dynamicQueueUtil;
+
     @PostMapping("test")
     public Result test(@RequestBody User user){
         return Result.success();
@@ -88,12 +90,15 @@ public class UserController {
         // 创建用户队列
    //     dynamicQueueUtil.createUserQueue(user.getUsername());
         // 广播上线状态
+        // 创建状态消息，但不要直接发送 WebSocket
         ChatMessage statusMsg = new ChatMessage();
         statusMsg.setType("status");
+        statusMsg.setMessageId(UUID.randomUUID().toString());
         statusMsg.setSender(user.getUsername());
         statusMsg.setReceiver("all");
         statusMsg.setContent("online");
-        chatService.sendUserStatus(statusMsg);
+        // 发送到 MQ，由 Consumer 统一处理
+        dispatcherProducerService.sendMessageToMQ(statusMsg);
 
         optional.get().setStatus(UserEntity.Status.online);
         userRepository.save(optional.get());
@@ -122,6 +127,7 @@ public class UserController {
                 msgEntity.setStatus(MessageEntity.Status.DELIVERED);
                 messageRepository.save(msgEntity);
             }
+
         });
       //  log.info("用户登录成功: {}, 未读消息数量: {}", user.getUsername(), unreadMessages.size());
         log.info("用户登录成功: {}", user.getUsername());
@@ -145,10 +151,12 @@ public class UserController {
         // 3. 广播下线状态（原有逻辑）
         ChatMessage statusMsg = new ChatMessage();
         statusMsg.setType("status");
+        statusMsg.setMessageId(UUID.randomUUID().toString());
         statusMsg.setSender(username);
         statusMsg.setReceiver("all");
         statusMsg.setContent("offline");
-        chatService.sendUserStatus(statusMsg);
+    // 发送到 MQ，由 Consumer 统一处理
+    dispatcherProducerService.sendMessageToMQ(statusMsg);
 
         // 4. 更新数据库状态
         UserEntity user = opt.get();
@@ -160,15 +168,15 @@ public class UserController {
         return Result.success("登出成功");
     }
     // 消息回执接口
-    @PostMapping("/ack")
-    public Result ackMessage(@RequestParam String messageId) {
-        messageRepository.findByMessageId(messageId).ifPresent(msg -> {
-            msg.setStatus(MessageEntity.Status.READ);
-            messageRepository.save(msg);
-        });
-        chatService.ackMessage(messageId);
-        return Result.success("消息已确认");
-    }
+//    @PostMapping("/ack")
+//    public Result ackMessage(@RequestParam String messageId) {
+//        messageRepository.findByMessageId(messageId).ifPresent(msg -> {
+//            msg.setStatus(MessageEntity.Status.READ);
+//            messageRepository.save(msg);
+//        });
+//        chatService.ackMessage(messageId);
+//        return Result.success("消息已确认");
+//    }
 
     @PostMapping("/upload")
     public Result uploadFile(@RequestParam("file") MultipartFile file) {
@@ -228,23 +236,3 @@ public class UserController {
 }
 
 
-//    // 用户注销时删除队列
-//    @PostMapping("/logout")
-//    public Result logout(@RequestParam String username) {
-//        dynamicQueueUtil.deleteQueue("queue_chat_user_" + username);
-//
-////        UserStatusMessage msg = new UserStatusMessage();
-////        msg.setUsername(username);
-////        msg.setStatus("offline");
-//        ChatMessage msg = new ChatMessage();
-//        msg.setType("status");
-//        msg.setSender(username);
-//        msg.setContent("OFFLINE");
-//        msg.setReceiver("all");
-//        msg.setTimestamp(System.currentTimeMillis());
-//        chatService.sendUserStatus(msg);
-//        log.info("用户注销成功：" + username);
-//
-//        return Result.success("登出成功");
-//    }
-//}

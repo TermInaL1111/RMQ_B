@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shms.deployrabbitmq.Enity.UserEntity;
 import com.shms.deployrabbitmq.Repository.UserRepository;
 import com.shms.deployrabbitmq.Service.DispatcherProducerService;
-import com.shms.deployrabbitmq.Service.DispatcherService;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +13,9 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -42,7 +41,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+        log.info("收到客户端的{}",message);
         ChatMessage msg = new ObjectMapper().readValue(message.getPayload(), ChatMessage.class);
+        log.info(msg.toString());
         dispatcherProducerService.sendMessageToMQ(msg);
     }
     public boolean isOnline(String userId) {
@@ -54,7 +55,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = getUserId(session);
         sessions.remove(userId);
-        log.info("🔴 {} 断开连接", userId);
+        log.info(" {} 断开连接", userId);
 
         // 更新数据库状态为离线
         try {
@@ -71,19 +72,22 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
         // 广播下线状态
         ChatMessage statusMsg = new ChatMessage();
+        statusMsg.setMessageId(UUID.randomUUID().toString());
         statusMsg.setType("status");
         statusMsg.setSender(userId);
         statusMsg.setReceiver("all");
         statusMsg.setContent("offline");
-        pushStatusToAll(statusMsg);
+        pushToAll(statusMsg);
     }
 
     // MQ 消费者会调用这个方法推送消息
     public void pushToUser(String userId, ChatMessage msg) {
+        log.info("开始发消息1");
         WebSocketSession session = sessions.get(userId);
         if (session != null && session.isOpen()) {
             try {
                 session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(msg)));
+                log.info("发送了{}",msg);
             } catch (Exception e) {
                 log.error("发送消息失败给 {}", userId, e);
             }
@@ -91,13 +95,14 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             log.warn("用户 {} 不在线", userId);
         }
     }
-    private void pushStatusToAll(ChatMessage msg) {
+    public void pushToAll(ChatMessage msg) {
         sessions.keySet().forEach(userId -> {
             pushToUser(userId, msg);
         });
     }
 
     private String getUserId(WebSocketSession session) {
+        log.info(session.getUri().getQuery().split("=")[1]);
         return session.getUri().getQuery().split("=")[1];
     }
 }

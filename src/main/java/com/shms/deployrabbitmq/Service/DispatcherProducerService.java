@@ -3,6 +3,7 @@ package com.shms.deployrabbitmq.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.shms.deployrabbitmq.config.RabbitMQConfig;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,11 +19,18 @@ public class DispatcherProducerService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RabbitTemplate rabbitTemplate;
-
+    private  ExecutorService executor;
     // 线程池
-    @Value("${thread.maxnum}")
+    @Value("${thread.maxnum:2}")
     private Integer maxthread;
-    private final ExecutorService executor = Executors.newFixedThreadPool(maxthread);
+    @PostConstruct
+    public void init() {
+        int threads = maxthread != null ? maxthread : 2; // 给默认值
+        System.out.println("maxthread = " + threads);
+        executor = Executors.newFixedThreadPool(threads);
+        // 初始化逻辑放这里
+    }
+
 
     @Value("${chat.mq.queue-count:10}")
     private int queueCount;
@@ -43,6 +51,7 @@ public class DispatcherProducerService {
                     //int index = Math.abs(msg.getReceiver().hashCode()) % queueCount;
                     int index = Math.abs(msg.getReceiver().hashCode()) % queueCount;
                     routingKey = RabbitMQConfig.ROUTING_KEY_USER + index;
+                    log.info(routingKey +"什么");
                 }
                 String json = objectMapper.writeValueAsString(msg);
                 rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, routingKey, json);

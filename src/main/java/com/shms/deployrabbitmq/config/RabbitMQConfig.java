@@ -31,8 +31,24 @@ public class RabbitMQConfig  {
      *  chat.user.{userId}   —— 单用户私聊
      *  chat.broadcast.*     —— 系统广播
      */
-    public static final String ROUTING_KEY_USER = "chat.user.*";
+    public static final String ROUTING_KEY_USER = "chat.user.";
     public static final String ROUTING_KEY_BROADCAST = "chat.broadcast.all";
+
+    //广播队列名
+    public static final String QUEUE_BROADCAST = "chat.queue.broadcast";
+
+//    //广播的单独队列
+//    @Bean
+//    public Queue broadcastQueue() {
+//        return new Queue(QUEUE_BROADCAST, true);
+//    }
+//
+//    @Bean
+//    public Binding broadcastBinding(TopicExchange exchange, Queue broadcastQueue) {
+//        return BindingBuilder.bind(broadcastQueue)
+//                .to(exchange)
+//                .with(RabbitMQConfig.ROUTING_KEY_BROADCAST);
+//    }
 
     @Bean
     public TopicExchange chatExchange() {
