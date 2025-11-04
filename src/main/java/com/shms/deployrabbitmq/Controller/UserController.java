@@ -4,7 +4,7 @@ import com.shms.deployrabbitmq.Enity.MessageEntity;
 import com.shms.deployrabbitmq.Enity.UserEntity;
 import com.shms.deployrabbitmq.Repository.MessageRepository;
 import com.shms.deployrabbitmq.Repository.UserRepository;
-import com.shms.deployrabbitmq.Service.ChatService;
+
 import com.shms.deployrabbitmq.Service.DispatcherProducerService;
 import com.shms.deployrabbitmq.pojo.ChatMessage;
 import com.shms.deployrabbitmq.pojo.Result;
@@ -41,25 +41,14 @@ public class UserController {
     private String fileDir; // 从配置文件注入
     @Value("${chat.file.access-url}")
     private String fileAccessUrl;
-
     @Autowired
     private UserRepository userRepository;
     @Autowired
     private MessageRepository messageRepository;
     @Autowired
     private ChatWebSocketHandler chatWebSocketHandler;
-
-//    @Autowired
-//    private ChatService chatService;
     @Autowired
     private  DispatcherProducerService dispatcherProducerService;
-
-
-    @PostMapping("test")
-    public Result test(@RequestBody User user){
-        return Result.success();
-    }
-
     // 用户注册
     @PostMapping("/register")
     public Result register(@RequestBody User user) {
@@ -73,6 +62,10 @@ public class UserController {
         log.info("用户注册成功：{}", user.getUsername());
         return Result.success("注册成功");
     }
+//    @PostMapping("test")
+//    public Result test(@RequestBody User user){
+//        return Result.success();
+//    }
     // 用户登录
     @PostMapping("/login")
     public Result login(@RequestBody User user) {

@@ -28,7 +28,7 @@ public class DispatcherConsumerService {
     public void init() {
         int threads = maxthread != null ? maxthread : 2; // 给默认值
         System.out.println("maxthread = " + threads);
-        executor = Executors.newFixedThreadPool(threads); // ✅ 在这里初始化线程池
+        executor = Executors.newFixedThreadPool(threads); //  在这里初始化线程池
         // 初始化逻辑放这里
     }
     public DispatcherConsumerService(ChatWebSocketHandler webSocketHandler,
@@ -75,8 +75,6 @@ public class DispatcherConsumerService {
             }
         });
     }
-
-
     //保持消息到数据库
     private void saveMessage(ChatMessage msg, MessageEntity.Status status) {
         MessageEntity entity = new MessageEntity();

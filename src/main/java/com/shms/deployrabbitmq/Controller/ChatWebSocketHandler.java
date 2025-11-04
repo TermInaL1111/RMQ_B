@@ -50,7 +50,26 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         WebSocketSession session = sessions.get(userId);
         return session != null && session.isOpen();
     }
-
+    // MQ 消费者会调用这个方法推送消息
+    public void pushToUser(String userId, ChatMessage msg) {
+        log.info("开始发消息1");
+        WebSocketSession session = sessions.get(userId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(msg)));
+                log.info("发送了{}",msg);
+            } catch (Exception e) {
+                log.error("发送消息失败给 {}", userId, e);
+            }
+        } else {
+            log.warn("用户 {} 不在线", userId);
+        }
+    }
+    public void pushToAll(ChatMessage msg) {
+        sessions.keySet().forEach(userId -> {
+            pushToUser(userId, msg);
+        });
+    }
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         String userId = getUserId(session);
@@ -80,26 +99,6 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         pushToAll(statusMsg);
     }
 
-    // MQ 消费者会调用这个方法推送消息
-    public void pushToUser(String userId, ChatMessage msg) {
-        log.info("开始发消息1");
-        WebSocketSession session = sessions.get(userId);
-        if (session != null && session.isOpen()) {
-            try {
-                session.sendMessage(new TextMessage(new ObjectMapper().writeValueAsString(msg)));
-                log.info("发送了{}",msg);
-            } catch (Exception e) {
-                log.error("发送消息失败给 {}", userId, e);
-            }
-        } else {
-            log.warn("用户 {} 不在线", userId);
-        }
-    }
-    public void pushToAll(ChatMessage msg) {
-        sessions.keySet().forEach(userId -> {
-            pushToUser(userId, msg);
-        });
-    }
 
     private String getUserId(WebSocketSession session) {
         log.info(session.getUri().getQuery().split("=")[1]);
